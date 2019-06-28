@@ -7,6 +7,8 @@ let curOnlys = []
 let curItems = []
 let curAfters = []
 let curBefores = []
+let curBeforeEaches = []
+let curAfterEaches = []
 
 const IN_MOCHA = typeof global.it !== "undefined" && typeof global.test ==="undefined" && process.argv.some(name => /mocha/.test(name))
 const IN_JEST = typeof global.test !== "undefined" && !IN_MOCHA
@@ -40,6 +42,8 @@ function teztDescribe(name, fn, id?) {
   const items = []
   const befores = []
   const afters = []
+  const beforeEaches = []
+  const afterEaches = []
   const describe = {
     name,
     id,
@@ -47,6 +51,8 @@ function teztDescribe(name, fn, id?) {
     items,
     afters,
     befores,
+    beforeEaches,
+    afterEaches,
     type: "describe",
   }
   curItems.push(describe)
@@ -55,15 +61,21 @@ function teztDescribe(name, fn, id?) {
   const prevOnlys = curOnlys
   const prevBefores = curBefores
   const prevAfters = curAfters
+  const prevBeforeEaches = curBeforeEaches
+  const prevAfterEaches = curAfterEaches
   curOnlys = onlys
   curItems = items
   curBefores = befores
   curAfters = afters
+  curBeforeEaches = beforeEaches
+  curAfterEaches = afterEaches
   fn()
   curItems = prevCurItems
   curOnlys = prevOnlys
   curBefores = prevBefores
   curAfters = prevAfters
+  curAfterEaches = prevAfterEaches
+  curBeforeEaches = prevBeforeEaches
 }
 
 if (!IN_MOCHA_OR_JEST) {
@@ -77,15 +89,21 @@ if (!IN_MOCHA_OR_JEST) {
 
 let depth = 0
 const failed = []
-export async function runTests(items, onlys) {
+export async function runTests(items, onlys, curBeforeEaches, curAfterEaches) {
   depth++
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
     if (onlys.length && !onlys.includes(item.id)) continue
     if (item.type === "test") {
       try {
+        for (const beforeEach of curBeforeEaches) {
+          await beforeEach()
+        }
         console.log(chalk.magenta(`${"#".repeat(depth)} Running ${item.name}`))
         await item.fn()
+        for (const afterEach of curAfterEaches) {
+          await afterEach()
+        }
         passed++
         console.log(chalk.green(`PASSED ✓ ${item.name}`))
       } catch (e) {
@@ -103,7 +121,7 @@ export async function runTests(items, onlys) {
           console.error(e)
         }
       }
-      await runTests(item.items, item.onlys)
+      await runTests(item.items, item.onlys, item.beforeEaches, item.afterEaches)
       for (let i = 0; i < item.afters.length; i++) {
         try {
           await item.afters[i]()
@@ -123,6 +141,16 @@ function teztAfter (fn) {
 export const before = IN_MOCHA ? (global as any).before : IN_JEST ? (global as any).beforeAll : teztBefore
 function teztBefore(fn) {
   curBefores.push(fn)
+}
+
+export const beforeEach = IN_MOCHA ? (global as any).before : IN_JEST ? (global as any).beforeEach : teztBeforeEach
+function teztBeforeEach(fn) {
+  curBeforeEaches.push(fn)
+}
+
+export const afterEach = IN_MOCHA ? (global as any).after : IN_JEST ? (global as any).afterEach : teztAfterEach
+function teztAfterEach(fn) {
+  curAfterEaches.push(fn)
 }
 
 export const log = (...args) => {
@@ -146,7 +174,7 @@ process.on('beforeExit', async () => {
         console.error(e)
       }
     }
-    await runTests(curItems, curOnlys)
+    await runTests(curItems, curOnlys, curBeforeEaches, curAfterEaches)
     console.log(chalk.cyanBright(`${passed} / ${total} passed`))
     failed.forEach(name => console.log(chalk.red(`${name} FAILED`)))
     for (let i = 0; i < curAfters.length; i++) {

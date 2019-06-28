@@ -8,7 +8,7 @@ Like so:
 
 ```ts
 import expect from 'expect'
-import { test, describe } from 'tezt'
+import { test, describe, before, after, afterEach, beforeEach } from './tezt'
 
 test('this is my test', () => {
   expect('hello').toBe('hello')
@@ -32,7 +32,7 @@ describe('I can describe a group of tests', () => {
   })
 
 
-  test.only('this is the only test that will run unless there are another only\'s in the block', () => {
+  test('this is the only test that will run unless there are another only\'s in the block', () => {
     throw new Error('This error will be thrown, but the rest of the tests will still run')
   })
 
@@ -47,6 +47,19 @@ describe('I can describe a group of tests', () => {
   })
 })
 
+describe('You can also run beforeEach and afterEach test', () => {
+  beforeEach(() => {
+    console.log('this will output before each test')
+  })
+  afterEach(() => {
+    console.log('this will output after each test')
+  })
+  for (let i = 0; i < 5; i++) {
+    test(`test ${i}`, () => {})
+  }
+
+})
+
 // describe.only('describes can also contain only\'s, but then the previous describe and previous tests would not run', () => {
 //   test('onlys exclude every describe or test on their same nest level that don\'t include onlys', () => {})
 // })
@@ -58,8 +71,6 @@ test('I can also run asynchonous tests', async () => {
   })
 })
 ```
-
-There are still a couple of things to do like implement `beforeEach` and `afterEach`, but I'm waiting to do those until I actually need them, although it will take 2 seconds, it's just more efficient that way. Open an issue if you need them right now though.
 
 ### Why?
 
@@ -146,10 +157,6 @@ Again though, you have to make sure the typescript file is constantly being buil
 ```
 
 not saying everyone will necessarily want to use this, but maybe it will make it easier for some people.
-
-### Future
-
-Potentially in the future, I will add `beforeEach`, `afterEach`, and make it where you can run all tests at once from the command line. Maybe some other stuff too, as I need more features.
 
 ### Credits
 

@@ -1,5 +1,5 @@
 import expect from 'expect'
-import { test, describe, before, after } from './tezt'
+import { test, describe, before, after, afterEach, beforeEach } from './tezt'
 
 test('this is my test', () => {
   expect('hello').toBe('hello')
@@ -23,7 +23,7 @@ describe('I can describe a group of tests', () => {
   })
 
 
-  test.only('this is the only test that will run unless there are another only\'s in the block', () => {
+  test('this is the only test that will run unless there are another only\'s in the block', () => {
     throw new Error('This error will be thrown, but the rest of the tests will still run')
   })
 
@@ -36,6 +36,19 @@ describe('I can describe a group of tests', () => {
       console.log('tests as they want')
     })
   })
+})
+
+describe('You can also run beforeEach and afterEach test', () => {
+  beforeEach(() => {
+    console.log('this will output before each test')
+  })
+  afterEach(() => {
+    console.log('this will output after each test')
+  })
+  for (let i = 0; i < 5; i++) {
+    test(`test ${i}`, () => {})
+  }
+
 })
 
 // describe.only('describes can also contain only\'s, but then the previous describe and previous tests would not run', () => {
