@@ -1,0 +1,22 @@
+{
+  "name": "tezt",
+  "version": "1.0.0",
+  "author": "Zane Hitchcox",
+  "description": "Minimalist testing library",
+  "repository": "https://github.com/zwhitchcox/tezt.git",
+  "main": "tezt.js",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^2.4.2",
+    "uuid": "^3.3.2"
+  },
+  "keywords": [
+    "testing",
+    "test",
+    "typescript",
+    "vs code"
+  ],
+  "devDependencies": {
+    "@types/node": "^12.0.10"
+  }
+}
