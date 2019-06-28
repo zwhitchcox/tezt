@@ -1,5 +1,7 @@
 This is a minimalistic testing library that doesn't usurp control of your node process. This makes it easy to run with VS Code's debugger or with you can listen with Chrome's debugger as well.
 
+The tests can also be run with Mocha or Jest without making any changes to your code, so you get the best of both worlds.
+
 Implementation is as easy as importing your module, declaring your tests, and running that file.
 
 Like so:
