@@ -80,6 +80,8 @@ You can also feel free to fork and make it your own. Because of its simplicity, 
 
 I wrote this library as I needed it, and that was literally faster than trying to get mocha or jest to work.
 
+### Use With VS Code
+
 Speaking of launch configurations, this is the `launch.json` I use to run my tests with VS Code's debugger:
 
 
