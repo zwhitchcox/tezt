@@ -32,7 +32,7 @@ describe('I can describe a group of tests', () => {
   })
 
 
-  test('this is the only test that will run unless there are another only\'s in the block', () => {
+  test.only('this is the only test that will be run aside from the describe only tests', () => {
     throw new Error('This error will be thrown, but the rest of the tests will still run')
   })
 
@@ -60,9 +60,9 @@ describe('You can also run beforeEach and afterEach test', () => {
 
 })
 
-// describe.only('describes can also contain only\'s, but then the previous describe and previous tests would not run', () => {
-//   test('onlys exclude every describe or test on their same nest level that don\'t include onlys', () => {})
-// })
+describe.only('describes can also be onlys, and all tests contained ', () => {
+  test('will be run (unless there\'s another only in the describe', () => {})
+})
 
 test('I can also run asynchonous tests', async () => {
   await new Promise((res, rej) => {
@@ -160,6 +160,7 @@ Again though, you have to make sure the typescript file is constantly being buil
 
 not saying everyone will necessarily want to use this, but maybe it will make it easier for some people.
 
-### Credits
+### Related
 
-I mostly took the design from Mocha and Jest.
+[jest](https://jestjs.io)
+[mocha](https://mochajs.org)

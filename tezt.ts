@@ -2,16 +2,19 @@ import chalk from 'chalk';
 import uuid from 'uuid/v4'
 import 'source-map-support/register'
 
-
+let skipped = 0
 let curOnlys = []
 let curItems = []
 let curAfters = []
 let curBefores = []
 let curBeforeEaches = []
 let curAfterEaches = []
-let curAncestors = []
+const curAncestors = []
+const containsOnlys = {}
 
-const IN_MOCHA = typeof global.it !== "undefined" && typeof global.test ==="undefined" && process.argv.some(name => /mocha/.test(name))
+const IN_MOCHA = typeof global.it !== "undefined" &&
+  typeof global.test ==="undefined" &&
+  process.argv.some(name => /mocha/.test(name))
 const IN_JEST = typeof global.test !== "undefined" && !IN_MOCHA
 const IN_MOCHA_OR_JEST = IN_JEST || IN_MOCHA
 
@@ -28,9 +31,12 @@ function teztTest(name, fn, id?: string) {
 }
 
 if (!IN_MOCHA_OR_JEST) {
-  test.skip = (name?, fn?) => {}
+  test.skip = (name?, fn?) => skipped++
   test.only = (name, fn) => {
     const id = uuid()
+    for (const ancestor of curAncestors) {
+      containsOnlys[ancestor] = true
+    }
     curOnlys.push(id)
     test(name, fn, id)
   }
@@ -70,7 +76,10 @@ function teztDescribe(name, fn, id?) {
   curAfters = afters
   curBeforeEaches = beforeEaches
   curAfterEaches = afterEaches
+
+  curAncestors.push(id)
   fn()
+  curAncestors.pop()
   curItems = prevCurItems
   curOnlys = prevOnlys
   curBefores = prevBefores
@@ -82,6 +91,9 @@ function teztDescribe(name, fn, id?) {
 if (!IN_MOCHA_OR_JEST) {
   describe.only = (name, fn) => {
     const id = uuid()
+    for (const ancestor of curAncestors) {
+      containsOnlys[ancestor] = true
+    }
     curOnlys.push(id)
     describe(name, fn, id)
   }
@@ -90,41 +102,34 @@ if (!IN_MOCHA_OR_JEST) {
 
 let depth = 0
 const failed = []
-export async function runTests(items, onlys, curBeforeEaches, curAfterEaches, curBefores, inOnly = false) {
+export async function runTests(items, onlys, curBeforeEaches, curAfterEaches) {
   depth++
-  let runAfters = false
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]
+  const siblingContainsOnly = items.some(item => containsOnlys[item.id])
+  for (const item of items) {
     if (item.type === "describe") {
+      if ((siblingContainsOnly || onlys.length) && !onlys.includes(item.id) && !containsOnlys[item.id]) continue
       console.log(chalk.cyan(`${"#".repeat(depth)} ${item.name.toUpperCase()}`))
-      curBefores.push(...item.befores)
-      if (await runTests(item.items, item.onlys, item.beforeEaches, item.afterEaches, curBefores, (onlys.length && !onlys.includes(item.id)))) {
-        runAfters = true
+      for (const before of item.befores) {
+        await before()
       }
+      await runTests(item.items, item.onlys, item.beforeEaches, item.afterEaches)
+      for (const after of item.afters) {
+        await after()
+      }
+      console.log()
     } else if (item.type === "test") {
-      if (inOnly && onlys.length && !onlys.includes(item.id)) continue
-      runAfters = true
-      for (let i = 0; i < item.befores.length; i++) {
-        try {
-          await item.befores[i]()
-        } catch (e) {
-          console.error(e)
-        }
-      }
+      if (!onlys.includes(item.id) && (siblingContainsOnly || onlys.length)) continue
       try {
-        while (curBefores.length) { // lazily run befores and afters, in case of deep nesting onlys
-          await (curBefores.shift())()
-        }
+        console.log(chalk.magenta(`${"#".repeat(depth)} Running ${item.name}`))
         for (const beforeEach of curBeforeEaches) {
           await beforeEach()
         }
-        console.log(chalk.magenta(`${"#".repeat(depth)} Running ${item.name}`))
         await item.fn()
         for (const afterEach of curAfterEaches) {
           await afterEach()
         }
         passed++
-        console.log(chalk.green(`PASSED ✓ ${item.name}`))
+        console.log(chalk.green(`PASSED ✓ ${item.name}\n`))
       } catch (e) {
         failed.push(item.name)
         console.error(chalk.red(e.stack))
@@ -133,28 +138,28 @@ export async function runTests(items, onlys, curBeforeEaches, curAfterEaches, cu
       total++
     }
   }
-    while (curAfters.length) {
-      await (curAfters.shift())()
-    }
-  depth++
-  return runAfters
+  depth--
 }
 
-export const after = IN_MOCHA ? (global as any).after : IN_JEST ? (global as any).afterAll : teztAfter
+export const after = IN_MOCHA ? (global as any).after :
+  IN_JEST ? (global as any).afterAll : teztAfter
 function teztAfter (fn) {
   curAfters.push(fn)
 }
-export const before = IN_MOCHA ? (global as any).before : IN_JEST ? (global as any).beforeAll : teztBefore
+export const before = IN_MOCHA ? (global as any).before :
+  IN_JEST ? (global as any).beforeAll : teztBefore
 function teztBefore(fn) {
   curBefores.push(fn)
 }
 
-export const beforeEach = IN_MOCHA ? (global as any).before : IN_JEST ? (global as any).beforeEach : teztBeforeEach
+export const beforeEach = IN_MOCHA ? (global as any).before :
+  IN_JEST ? (global as any).beforeEach : teztBeforeEach
 function teztBeforeEach(fn) {
   curBeforeEaches.push(fn)
 }
 
-export const afterEach = IN_MOCHA ? (global as any).after : IN_JEST ? (global as any).afterEach : teztAfterEach
+export const afterEach = IN_MOCHA ? (global as any).after :
+  IN_JEST ? (global as any).afterEach : teztAfterEach
 function teztAfterEach(fn) {
   curAfterEaches.push(fn)
 }
@@ -173,12 +178,15 @@ let total = 0
 process.on('beforeExit', async () => {
   if (!hasRun && !IN_MOCHA_OR_JEST) {
     hasRun = true
-    if (await runTests(curItems, curOnlys, curBeforeEaches, curAfterEaches, curBefores, true)) {
-      for (const after of curAfters) {
-        await after()
-      }
+    for (const before of curBefores) {
+      await before()
+    }
+    await runTests(curItems, curOnlys, curBeforeEaches, curAfterEaches)
+    for (const after of curAfters) {
+      await after()
     }
     console.log(chalk.cyanBright(`${passed} / ${total} passed`))
-    failed.forEach(name => console.log(chalk.red(`${name} FAILED`)))
+    console.log(chalk.cyan(`${skipped} skipped`))
+    failed.forEach(name => console.log(chalk.red(`FAILED: ${name}`)))
   }
 })
