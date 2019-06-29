@@ -2,7 +2,13 @@ import chalk from 'chalk';
 import uuid from 'uuid/v4'
 import 'source-map-support/register'
 
-let skipped = 0
+// SUPPORTS BROWSER, untested
+if (typeof window !== "undefined") {
+  (window as any).global = (window as any)
+  (window as any).process = {argv: []}
+}
+
+let totalTests = 0
 let curOnlys = []
 let curItems = []
 let curAfters = []
@@ -20,6 +26,7 @@ const IN_MOCHA_OR_JEST = IN_JEST || IN_MOCHA
 
 export const test:any = IN_MOCHA ? global.it : IN_JEST ? global.test : teztTest
 function teztTest(name, fn, id?: string) {
+  totalTests++
   id = id || uuid()
   const test = {
     name,
@@ -31,7 +38,7 @@ function teztTest(name, fn, id?: string) {
 }
 
 if (!IN_MOCHA_OR_JEST) {
-  test.skip = (name?, fn?) => skipped++
+  test.skip = (name?, fn?) => totalTests++
   test.only = (name, fn) => {
     const id = uuid()
     for (const ancestor of curAncestors) {
@@ -135,7 +142,7 @@ export async function runTests(items, onlys, curBeforeEaches, curAfterEaches) {
         console.error(chalk.red(e.stack))
         console.error(item.name, chalk.red('FAILED :('))
       }
-      total++
+      totalRun++
     }
   }
   depth--
@@ -174,19 +181,23 @@ export const log = (...args) => {
 
 let hasRun = false
 let passed = 0
-let total = 0
+let totalRun = 0
 process.on('beforeExit', async () => {
   if (!hasRun && !IN_MOCHA_OR_JEST) {
     hasRun = true
-    for (const before of curBefores) {
-      await before()
-    }
-    await runTests(curItems, curOnlys, curBeforeEaches, curAfterEaches)
-    for (const after of curAfters) {
-      await after()
-    }
-    console.log(chalk.cyanBright(`${passed} / ${total} passed`))
-    console.log(chalk.cyan(`${skipped} skipped`))
-    failed.forEach(name => console.log(chalk.red(`FAILED: ${name}`)))
+    await tezt()
   }
 })
+
+export async function tezt() {
+  for (const before of curBefores) {
+    await before()
+  }
+  await runTests(curItems, curOnlys, curBeforeEaches, curAfterEaches)
+  for (const after of curAfters) {
+    await after()
+  }
+  console.log(chalk.cyanBright(`${passed} / ${totalRun} passed`))
+  console.log(chalk.cyan(`${totalTests - totalRun} skipped`))
+  failed.forEach(name => console.log(chalk.red(`FAILED: ${name}`)))
+}

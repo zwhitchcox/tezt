@@ -74,7 +74,7 @@ test('I can also run asynchonous tests', async () => {
 
 ### Why?
 
-My use case is pretty simple. I wanted to use VS Code's debugger with jest or mocha, but I couldn't figure out how to get that to work. I've also had bad luck with those libraries in the past, I feel, because they try to do too much, and bugs can be hard to trace. This is just a simple library with about 300 lines of code that anyone can use or understand.
+My use case is pretty simple. I wanted to use VS Code's debugger with jest or mocha, but I couldn't figure out how to get that to work. I've also had bad luck with those libraries in the past, I feel, because they try to do too much, and bugs can be hard to trace. This is just a simple library with about 200 lines of code that anyone can use or understand.
 
 You can also feel free to fork and make it your own. Because of its simplicity, there aren't many places where you're pigeon holed into the design of a colossal project and can't even figure out how it works.
 
@@ -87,18 +87,23 @@ Speaking of launch configurations, this is the `launch.json` I use to run my tes
 
 ```json
 {
-  "name": "Run Current File",
-  "type": "node",
-  "request": "launch",
-  "program": "${workspaceRoot}/${relativeFile}",
-  "env": {
-      "FORCE_COLOR": "1"
-  },
-  "skipFiles": [
-      "<node_internals>/**/*.js",
-  ],
-  "outFiles": [
-      "${workspaceRoot}/dist/**/*.js"
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Current File",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceRoot}/${relativeFile}",
+      "env": {
+          "FORCE_COLOR": "1"
+      },
+      "skipFiles": [
+          "<node_internals>/**/*.js",
+      ],
+      "outFiles": [
+          "${workspaceRoot}/dist/**/*.js"
+      ]
+    }
   ]
 }
 ```
