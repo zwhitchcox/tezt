@@ -8,7 +8,7 @@ Like so:
 
 ```ts
 import expect from 'expect'
-import { test, describe, before, after, afterEach, beforeEach } from './tezt'
+import { test, describe, before, after, afterEach, beforeEach } from 'tezt'
 
 test('this is my test', () => {
   expect('hello').toBe('hello')
