@@ -3,9 +3,21 @@ import uuid from 'uuid/v4'
 import 'source-map-support/register'
 
 // SUPPORTS BROWSER, untested
-if (typeof window !== "undefined") {
+if (isNode()) {
   (window as any).global = (window as any)
   (window as any).process = {argv: []}
+}
+function isNode() {
+    return typeof global === 'object'
+        && String(global) === '[object global]'
+        && typeof process === 'object'
+        && String(process) === '[object process]'
+        && global === global.GLOBAL // circular ref
+        // process.release.name cannot be altered, unlike process.title
+        && /node|io\.js/.test(process.release.name)
+        && typeof setImmediate === 'function'
+        && setImmediate.length === 4
+        && typeof __dirname === 'string'
 }
 
 let totalTests = 0
