@@ -32,7 +32,7 @@ describe('I can describe a group of tests', () => {
   })
 
 
-  test.only('this is the only test that will be run aside from the describe only tests', () => {
+  test.only('this is the only test that will be run aside from the describe.only tests', () => {
     throw new Error('This error will be thrown, but the rest of the tests will still run')
   })
 
