@@ -2,23 +2,16 @@ import chalk from 'chalk';
 import uuid from 'uuid/v4'
 import 'source-map-support/register'
 
-// SUPPORTS BROWSER, untested
-if (isNode()) {
+const isNode = typeof window === "undefined"
+const IN_JEST = process.env.JEST_WORKER_ID
+if (!isNode && !IN_JEST) {
   (window as any).global = (window as any)
   (window as any).process = {argv: []}
 }
-function isNode() {
-    return typeof global === 'object'
-        && String(global) === '[object global]'
-        && typeof process === 'object'
-        && String(process) === '[object process]'
-        && global === global.GLOBAL // circular ref
-        // process.release.name cannot be altered, unlike process.title
-        && /node|io\.js/.test(process.release.name)
-        && typeof setImmediate === 'function'
-        && setImmediate.length === 4
-        && typeof __dirname === 'string'
-}
+const IN_MOCHA = !IN_JEST && typeof global.it !== "undefined"
+const IN_MOCHA_OR_JEST = IN_JEST || IN_MOCHA
+
+
 
 let totalTests = 0
 let curOnlys = []
@@ -30,11 +23,6 @@ let curAfterEaches = []
 const curAncestors = []
 const containsOnlys = {}
 
-const IN_MOCHA = typeof global.it !== "undefined" &&
-  typeof global.test ==="undefined" &&
-  process.argv.some(name => /mocha/.test(name))
-const IN_JEST = typeof global.test !== "undefined" && !IN_MOCHA
-const IN_MOCHA_OR_JEST = IN_JEST || IN_MOCHA
 
 export const test:any = IN_MOCHA ? global.it : IN_JEST ? global.test : teztTest
 function teztTest(name, fn, id?: string) {
