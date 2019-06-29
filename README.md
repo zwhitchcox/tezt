@@ -163,6 +163,23 @@ Again though, you have to make sure the typescript file is constantly being buil
 }
 ```
 
+Sample jest configuration (for typescript):
+
+```json
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/*.test.ts"
+    ]
+  }
+}
+```
+
+Install dependencies for sample configuration:
+
+`yarn add --dev @types/jest @types/node ts-jest typescript expect tezt`
+
 not saying everyone will necessarily want to use this, but maybe it will make it easier for some people.
 
 ### Related
