@@ -23,7 +23,7 @@ describe('I can describe a group of tests', () => {
   })
 
 
-  test('this is the only test that will run unless there are another only\'s in the block', () => {
+  test.only('this is the only test that will run unless there are another only\'s in the block', () => {
     throw new Error('This error will be thrown, but the rest of the tests will still run')
   })
 
