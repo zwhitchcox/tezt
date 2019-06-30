@@ -3,6 +3,12 @@ import uuid from 'uuid/v4'
 import 'source-map-support/register'
 
 const isNode = typeof window === "undefined"
+if (process.env.TEZT) {
+  (global as any).$$teztRunTests = async () => {
+    await tezt()
+    reset()
+  }
+}
 const IN_JEST = process.env.JEST_WORKER_ID
 if (!isNode && !IN_JEST) {
   (window as any).global = (window as any)
@@ -20,9 +26,30 @@ let curAfters = []
 let curBefores = []
 let curBeforeEaches = []
 let curAfterEaches = []
-const curAncestors = []
-const containsOnlys = {}
+let curAncestors = []
+let containsOnlys = {}
+let hasRun = false
+let passed = 0
+let totalRun = 0
+let depth = 0
+let failed = []
 
+export function reset() {
+  totalTests = 0
+  curOnlys = []
+  curItems = []
+  curAfters = []
+  curBefores = []
+  curBeforeEaches = []
+  curAfterEaches = []
+  curAncestors = []
+  containsOnlys = {}
+  hasRun = false
+  passed = 0
+  totalRun = 0
+  depth = 0
+  failed = []
+}
 
 export const test:any = IN_MOCHA ? global.it : IN_JEST ? global.test : teztTest
 function teztTest(name, fn, id?: string) {
@@ -107,8 +134,6 @@ if (!IN_MOCHA_OR_JEST) {
   describe.skip = (name?, fn?) => {}
 }
 
-let depth = 0
-const failed = []
 export async function runTests(items, onlys, curBeforeEaches, curAfterEaches) {
   depth++
   const siblingContainsOnly = items.some(item => containsOnlys[item.id])
@@ -179,9 +204,6 @@ export const log = (...args) => {
   console.log(...args)
 }
 
-let hasRun = false
-let passed = 0
-let totalRun = 0
 process.on('beforeExit', async () => {
   if (!hasRun && !IN_MOCHA_OR_JEST) {
     hasRun = true
@@ -190,14 +212,18 @@ process.on('beforeExit', async () => {
 })
 
 export async function tezt() {
-  for (const before of curBefores) {
-    await before()
+  try {
+    for (const before of curBefores) {
+      await before()
+    }
+    await runTests(curItems, curOnlys, curBeforeEaches, curAfterEaches)
+    for (const after of curAfters) {
+      await after()
+    }
+    console.log(chalk.cyanBright(`${passed} / ${totalRun} passed`))
+    console.log(chalk.cyan(`${totalTests - totalRun} skipped`))
+    failed.forEach(name => console.log(chalk.red(`FAILED: ${name}`)))
+  } catch (e) {
+    console.log(e)
   }
-  await runTests(curItems, curOnlys, curBeforeEaches, curAfterEaches)
-  for (const after of curAfters) {
-    await after()
-  }
-  console.log(chalk.cyanBright(`${passed} / ${totalRun} passed`))
-  console.log(chalk.cyan(`${totalTests - totalRun} skipped`))
-  failed.forEach(name => console.log(chalk.red(`FAILED: ${name}`)))
 }

@@ -15,6 +15,26 @@
       "outFiles": [
           "${workspaceRoot}/dist/**/*.js"
       ]
+    },
+    {
+      "name": "Run Tezt",
+      "type": "node",
+      "request": "launch",
+      "runtimeArgs": [
+        "--inspect-brk",
+        "./dist/cli.js",
+        "--runInBand",
+        "--watchAll"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "port": 9229,
+      "env": {
+          "FORCE_COLOR": "1"
+      },
+      "skipFiles": [
+          "<node_internals>/**/*.js",
+      ],
     }
   ]
 }

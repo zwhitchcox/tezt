@@ -72,14 +72,6 @@ test('I can also run asynchonous tests', async () => {
 })
 ```
 
-### Why?
-
-My use case is pretty simple. I wanted to use VS Code's debugger with jest or mocha, but I couldn't figure out how to get that to work. I've also had bad luck with those libraries in the past, I feel, because they try to do too much, and bugs can be hard to trace. This is just a simple library with about 200 lines of code that anyone can use or understand.
-
-You can also feel free to fork and make it your own. Because of its simplicity, there aren't many places where you're pigeon holed into the design of a colossal project and can't even figure out how it works.
-
-I wrote this library as I needed it, and that was literally faster than trying to get mocha or jest to work.
-
 ### Use With VS Code
 
 Speaking of launch configurations, this is the `launch.json` I use to run my tests with VS Code's debugger:
@@ -108,7 +100,7 @@ Speaking of launch configurations, this is the `launch.json` I use to run my tes
 }
 ```
 
-But you have to also have the files being generated automatically to run this, and this launch configuration assumes your `outDir` is set to a directory called `dist` in your current workspace.
+This launch configuration assumes your `outDir` is set to a directory called `dist` in your current workspace.
 
 This is the `tsconfig.json` I use:
 
@@ -145,7 +137,7 @@ This is the `tsconfig.json` I use:
 }
 ```
 
-Again though, you have to make sure the typescript file is constantly being built with `tsc -w`. This is the task I use:
+You have to make sure the typescript file is constantly being built with `tsc -w`. This is the task I use:
 
 ```json
 {
