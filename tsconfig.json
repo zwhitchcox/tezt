@@ -14,10 +14,10 @@
     "allowSyntheticDefaultImports": true,
   },
   "files": [
-    "tezt.ts",
+    "tezt.singleton.ts",
     "cli.ts",
   ],
   "include": [
-    "**/*.test.ts", "teztmat.ts"
+    "**/*.test.ts"
   ],
 }

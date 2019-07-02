@@ -17,6 +17,21 @@
       ]
     },
     {
+      "name": "Run tezt.test",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceRoot}/tezt.test.ts",
+      "env": {
+          "FORCE_COLOR": "1"
+      },
+      "skipFiles": [
+          "<node_internals>/**/*.js",
+      ],
+      "outFiles": [
+          "${workspaceRoot}/dist/**/*.js"
+      ]
+    },
+    {
       "name": "Run Tezt",
       "type": "node",
       "request": "launch",
@@ -24,7 +39,6 @@
         "--inspect-brk",
         "./dist/cli.js",
         "--runInBand",
-        "--watchAll"
       ],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",

@@ -1,5 +1,24 @@
 import expect from 'expect'
-import { test, describe, before, after, afterEach, beforeEach } from './tezt'
+import { test, describe, before, after, afterEach, beforeEach, only } from './tezt.singleton'
+
+
+
+before(() => {
+  console.log('hello')
+})
+
+describe.only('hellohello', () => {
+  describe.skip('describes can also be onlys, and all tests contained ', () => {
+    before(() => {
+      console.log('this is run before')
+    })
+    describe.only('myonly', () => {
+      test('hello', ()=>{})
+      // test('new test', () =>{})
+      // test('will be run (unless there\'s another only in the describe', () => {})
+    })
+  })
+})
 
 
 test('this is my test', () => {
@@ -26,14 +45,23 @@ describe('I can describe a group of tests', () => {
 
 
   test.only('this is the only test that will be run aside from the describe only tests', () => {
-    throw new Error('This error will be thrown, but the rest of the tests will still run')
+    // throw new Error('This error will be thrown, but the rest of the tests will still run')
   })
 
   test(`this test won't be run, because it didn't specify only`, () => {
     console.log('this is not run')
   })
 
-  describe('I can nest as many describes as I want', () => {
+  describe.only('I can nest as many describes as I want', () => {
+    test('and they can include as many', () => {
+      console.log('tests as they want')
+    })
+    test('and they can include as many', () => {
+      console.log('tests as they want')
+    })
+    describe.skip('not real', () => {
+      test.only('hello', () => {})
+    })
     test('and they can include as many', () => {
       console.log('tests as they want')
     })
@@ -53,8 +81,17 @@ describe('You can also run beforeEach and afterEach test', () => {
 
 })
 
-describe.only('describes can also be onlys, and all tests contained ', () => {
-  test('will be run (unless there\'s another only in the describe', () => {})
+describe.only('hellohello', () => {
+  describe.skip('describes can also be onlys, and all tests contained ', () => {
+    before(() => {
+      console.log('this is run before')
+    })
+    describe('myonly', () => {
+      test('hello', ()=>{})
+      // test('new test', () =>{})
+      // test('will be run (unless there\'s another only in the describe', () => {})
+    })
+  })
 })
 
 test('I can also run asynchonous tests', async () => {
