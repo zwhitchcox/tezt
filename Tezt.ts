@@ -1,8 +1,10 @@
 import uuid from 'uuid/v4'
 import chalk from 'chalk';
+import { RunCallbacks, IRunCallbacks } from './output';
+import { timingSafeEqual } from 'crypto';
 
 
-type TVoidFunc = () => void
+export type TVoidFunc = () => void
 export interface IBlock {
   children: TItem[]
   afters: TVoidFunc[]
@@ -10,6 +12,7 @@ export interface IBlock {
   beforeEaches: TVoidFunc[]
   afterEaches: TVoidFunc[]
   containsOnly: boolean
+  totalTests: number
 }
 
 export class Block implements IBlock {
@@ -20,6 +23,7 @@ export class Block implements IBlock {
   beforeEaches = []
   afterEaches = []
   containsOnly = false
+  totalTests = 0
 }
 
 export interface IItem {
@@ -78,6 +82,7 @@ export interface ITezt extends Block {
   skipLocations: string[]
   onlyLocations: string[]
   inOnly: boolean
+  name: string
 }
 
 export class Tezt extends Block implements ITezt {
@@ -88,7 +93,7 @@ export class Tezt extends Block implements ITezt {
   onlyLocations = []
   inOnly = false
   containsOnly = false
-
+  name = "tezt"
 
   constructor() {
     super()
@@ -98,6 +103,7 @@ export class Tezt extends Block implements ITezt {
 
   public test = (() => {
     const test = (name, fn) => {
+      this.curBlock.totalTests++
       const test = new Test(name, fn)
       this.curBlock.children.push(test)
       if (this.inOnly) {
@@ -154,7 +160,7 @@ export class Tezt extends Block implements ITezt {
   })()
 
   public run = async () => {
-    return await runTests(this.curBlock)
+    return await run(this.curBlock)
   }
 
   public only = () => {
@@ -193,22 +199,84 @@ export function getLocation(depth = 3): ILocation {
   }
 }
 
+type TBlockOrTestStats = ITestStats | IBlockStats
 
-interface IStats {
-  passed: number
-  totalTests: number
-  failed: string[]
+export enum TestStatus {
+  Passed,
+  Failed,
+  Skipped,
+  NotRun,
+}
+
+export interface ITestStats {
+  output: IConsoleOutput[]
+  beforeEachOutput: IConsoleOutput[]
+  afterEachOutput: IConsoleOutput[]
+  status: TestStatus
+  time: number
+  error?: Error
+}
+
+export class TestStats {
+  output = []
+  beforeEachOutput = []
+  afterEachOutput = []
+  status = TestStatus.NotRun
+  time = 0
+  error = null
+}
+
+export interface IBlockStats {
+  passed: ITest[]
+  failed: ITest[]
   totalRun: number
   depth: number
+  children: TBlockOrTestStats[]
+  block: IBlock
+  time: number
+  skipped: boolean
+  beforeOutput: IConsoleOutput[]
+  afterOutput: IConsoleOutput[]
+  output: IConsoleOutput[]
 }
 
-export class Stats implements IStats {
-  passed = 0
+enum ConsoleOutputType {
+  Warn,
+  Error,
+  Log
+}
+
+export interface IConsoleOutput {
+  type: ConsoleOutputType
+  message: string[]
+  location: ILocation
+}
+
+export class BlockStats implements IBlockStats {
+  passed = []
   failed = []
   totalRun = 0
-  depth = 0
-  totalTests = 0
+  children = []
+  time = 0
+  beforeOutput = []
+  afterOutput = []
+  output = []
+  constructor(public block, public depth, public skipped){}
 }
+
+export interface IRunOptions {
+  callbacks: IRunCallbacks
+  outputConsole: boolean
+}
+
+export class RunOptions implements IRunOptions {
+  public callbacks = new RunCallbacks
+  public outputConsole = false
+  constructor(options = {}) {
+    Object.assign(this, options)
+  }
+}
+
 
 export function outputResults (stats) {
   const { passed, totalRun, totalTests, failed } = stats
@@ -217,52 +285,132 @@ export function outputResults (stats) {
   failed.forEach(name => console.log(chalk.red(`FAILED: ${name}`)))
 }
 
-
-
-export async function runTests(block: IBlock, stats: IStats = new Stats, depth = 0, inskip = false) {
+export async function run(block: IBlock, inskip = false, depth = 0, options = new RunOptions) {
+  let prevConsoleLog = console.log
+  let prevConsoleWarn = console.warn
+  let prevConsoleError = console.error
+  let onConsoleWarn = (...args) => {}
+  let onConsoleLog = (...args) => {}
+  let onConsoleError = (...args) => {}
+  console.log = (...args) => {
+    onConsoleLog(...args)
+    if (options.outputConsole) {
+      prevConsoleLog(...args)
+    }
+  }
+  console.warn = (...args) => {
+    onConsoleWarn(...args)
+    if (options.outputConsole) {
+      prevConsoleWarn(...args)
+    }
+  }
+  console.error = (...args) => {
+    onConsoleError(...args)
+    if (options.outputConsole) {
+      prevConsoleError(...args)
+    }
+  }
   const {children, beforeEaches, afterEaches, befores, afters, containsOnly} = block
-  depth++
+  const {callbacks} = options
+  const stats = new BlockStats(block, depth, inskip)
   try {
     if (containsOnly) {
       for (const before of befores) {
+        if (callbacks.before) {
+          callbacks.before(block, inskip, depth)
+        }
+        const destroy = setConsoleOutput(stats.beforeOutput)
         await before()
+        destroy()
       }
     }
     for (const item of children) {
       if (item instanceof Describe) {
         const skip = (inskip || (containsOnly && !item.block.containsOnly))
-        !skip && console.log(chalk.cyan(`${"#".repeat(depth)} ${item.name}`))
-        await runTests(item.block, stats, depth, skip)
-        !skip && console.log()
+        const timeStart = +new Date
+        const itemStats = await run(item.block, skip, depth+1, options)
+        const timeEnd = +new Date
+        itemStats.time = timeStart - timeEnd
+        stats.children.push(itemStats)
       } else if (item instanceof Test) {
-        stats.totalTests++
+        const testStats = new TestStats
+        if (callbacks.beforeTest) {
+          callbacks.beforeTest(item, depth)
+        }
         try {
-          if ((!item.only) && (containsOnly || inskip || item.skip)) continue
-          console.log(chalk.magenta(`${"#".repeat(depth)} Running ${item.name}`))
+          stats.children.push(testStats)
+          if ((!item.only) && (containsOnly || inskip || item.skip)) {
+            stats.skipped.push(item)
+            continue
+          }
           for (const beforeEach of beforeEaches) {
+            const destroy = setConsoleOutput(testStats.beforeEachOutput)
             await beforeEach()
+            destroy()
           }
+          const destroy = setConsoleOutput(testStats.output)
           await item.fn()
+          destroy()
           for (const afterEach of afterEaches) {
+            const destroy = setConsoleOutput(testStats.afterEachOutput)
             await afterEach()
+            destroy()
           }
-          stats.passed++
-          console.log(chalk.green(`PASSED ✓ ${item.name}\n`))
+          stats.passed.push(item)
         } catch (e) {
-          stats.failed.push(item.name)
-          console.error(chalk.red(e.stack))
-          console.error(item.name, chalk.red('FAILED :('))
+          testStats.error = e
+          stats.failed.push(item)
+        }
+        if (callbacks.afterTest) {
+          callbacks.afterTest(testStats, item)
         }
         stats.totalRun++
       }
     }
     if (containsOnly) {
       for (const after of afters) {
+        const destroy = setConsoleOutput(stats.afterOutput)
         await after()
+        destroy()
+        if (callbacks.after) {
+          callbacks.after(stats)
+        }
       }
     }
   } catch (e) {
     console.error(e)
   }
   return stats
+
+  function setConsoleOutput(outputArr) {
+    const prevOnConsoleWarn = onConsoleWarn
+    onConsoleWarn = (...args) => {
+      outputArr.push({
+        message: args.map(String),
+        location: getLocation(),
+        type: ConsoleOutputType.Warn
+      })
+    }
+    const prevOnConsoleError = onConsoleError
+    onConsoleError = (...args) => {
+      outputArr.push({
+        message: args.map(String),
+        location: getLocation(),
+        type: ConsoleOutputType.Error
+      })
+    }
+    const prevOnConsoleLog = onConsoleLog
+    onConsoleLog = (...args) => {
+      outputArr.push({
+        message: args.map(String),
+        location: getLocation(),
+        type: ConsoleOutputType.Log
+      })
+    }
+    return () => {
+      onConsoleWarn = prevOnConsoleWarn
+      onConsoleError = prevOnConsoleError
+      onConsoleLog = prevOnConsoleLog
+    }
+  }
 }

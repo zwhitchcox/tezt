@@ -16,6 +16,7 @@
   "files": [
     "tezt.singleton.ts",
     "cli.ts",
+    "output.ts",
   ],
   "include": [
     "**/*.test.ts"
