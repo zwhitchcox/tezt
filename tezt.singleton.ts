@@ -1,4 +1,5 @@
-import { Tezt, Describe, outputResults } from './Tezt'
+import { Tezt } from './Tezt'
+import { outputResults } from './output';
 import 'source-map-support/register'
 
 const IN_NODE = typeof window === "undefined"
@@ -34,7 +35,7 @@ export const skip = IN_OTHER ? () => {} : (...args) => tezt.skip(...args)
 
 let hasRun = false
 process.on('beforeExit', async () => {
-  if (!hasRun && !IN_OTHER) {
+  if (!hasRun && !IN_OTHER && !(process.env.TEZT === "cli")) {
     hasRun = true
     outputResults(await tezt.run())
   }

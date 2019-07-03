@@ -1,52 +1,30 @@
 import chalk from "chalk";
-import {TVoidFunc, TestStatus} from './Tezt'
-import { Stats } from "fs";
+import { Block, Test, BlockStats, TestStats } from './Tezt';
 
-export interface IRunCallbacks {
-  before: (block, skip, depth) => void
-  after?: (stats) => void
-  beforeTest?: (item, depth) => void
-  afterTest?: (testStats, item) => void
+export function outputResults (stats) {
+  const { passed, totalRun, failed, skipped } = stats
+  outputContent(stats.children)
+  const totalTests = passed.length + failed.length + skipped.length
+  console.log(chalk.cyanBright(`${passed.length} / ${totalRun} passed`))
+  console.log(chalk.cyan(`${totalTests - totalRun} skipped`))
+  failed.forEach(({name}) => console.log(chalk.red(`FAILED: ${name}`)))
 }
 
-const callbackNames = [
-  'before',
-  'after',
-  'beforeTest',
-  'afterTest'
-]
-export class RunCallbacks implements IRunCallbacks {
-  before = (block, inskip, depth) => {}
-  after = (stats) => {}
-  beforeTest = (item, depth) => {}
-  afterTest = (testStats, item) => {}
+function outputContent(stats) {
+  for (const itemStats of stats) {
+    if (itemStats instanceof BlockStats) {
 
-  constructor(callbacks = {}) {
-    for (const name in callbacks) {
-      if (!callbackNames.includes[name]) {
-        throw new Error('There is not callback of type ' + name)
+      if (itemStats.totalRun) {
+        console.log(chalk.cyan(`${"  ".repeat(itemStats.depth)} ${itemStats.name}`))
+        outputContent(itemStats.children)
       }
+    } else if (itemStats instanceof TestStats) {
+      outputTest(itemStats)
     }
-    Object.assign(this, callbacks)
   }
 }
 
-export const classicCallbacks =  new RunCallbacks({
-  before: (item, stats) => {
-    console.log(chalk.cyan(`${"#".repeat(stats.depth)} ${item.name}`))
-  },
-  after: stats => {
-    console.log()
-  },
-  beforeTest: (item, depth) => {
-    console.log(chalk.magenta(`${"#".repeat(depth)} Running ${item.name}`))
-  },
-  afterTest: (stats, item) => {
-    if (stats.Status === TestStatus.Failed) {
-      console.error(item.name, chalk.red('FAILED :('))
-    } else if (stats.Status === TestStatus.Passed) {
-      console.log(chalk.green(`PASSED ✓ ${item.name}\n`))
-      console.error(chalk.red(stats.error.stack))
-    }
-  }
-})
+function outputTest(test) {
+  if (test)
+  console.log(test)
+}

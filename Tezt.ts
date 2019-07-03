@@ -1,7 +1,5 @@
 import uuid from 'uuid/v4'
-import chalk from 'chalk';
-import { RunCallbacks, IRunCallbacks } from './output';
-import { timingSafeEqual } from 'crypto';
+import { RunCallbacks, IRunCallbacks } from './RunCallbacks';
 
 
 export type TVoidFunc = () => void
@@ -226,20 +224,6 @@ export class TestStats {
   error = null
 }
 
-export interface IBlockStats {
-  passed: ITest[]
-  failed: ITest[]
-  totalRun: number
-  depth: number
-  children: TBlockOrTestStats[]
-  block: IBlock
-  time: number
-  skipped: boolean
-  beforeOutput: IConsoleOutput[]
-  afterOutput: IConsoleOutput[]
-  output: IConsoleOutput[]
-}
-
 enum ConsoleOutputType {
   Warn,
   Error,
@@ -252,6 +236,21 @@ export interface IConsoleOutput {
   location: ILocation
 }
 
+export interface IBlockStats {
+  passed: ITest[]
+  failed: ITest[]
+  skipped: ITest[]
+  totalRun: number
+  depth: number
+  children: TBlockOrTestStats[]
+  block: IBlock
+  time: number
+  beforeOutput: IConsoleOutput[]
+  afterOutput: IConsoleOutput[]
+  wasRun: boolean
+  output: IConsoleOutput[]
+}
+
 export class BlockStats implements IBlockStats {
   passed = []
   failed = []
@@ -261,7 +260,9 @@ export class BlockStats implements IBlockStats {
   beforeOutput = []
   afterOutput = []
   output = []
-  constructor(public block, public depth, public skipped){}
+  skipped = []
+  wasRun = false
+  constructor(public block, public depth, public name){}
 }
 
 export interface IRunOptions {
@@ -278,41 +279,43 @@ export class RunOptions implements IRunOptions {
 }
 
 
-export function outputResults (stats) {
-  const { passed, totalRun, totalTests, failed } = stats
-  console.log(chalk.cyanBright(`${passed} / ${totalRun} passed`))
-  console.log(chalk.cyan(`${totalTests - totalRun} skipped`))
-  failed.forEach(name => console.log(chalk.red(`FAILED: ${name}`)))
-}
-
-export async function run(block: IBlock, inskip = false, depth = 0, options = new RunOptions) {
+export async function run(block: IBlock, inskip = false, depth = 0, options = new RunOptions, name?: string) {
   let prevConsoleLog = console.log
   let prevConsoleWarn = console.warn
   let prevConsoleError = console.error
   let onConsoleWarn = (...args) => {}
   let onConsoleLog = (...args) => {}
   let onConsoleError = (...args) => {}
-  console.log = (...args) => {
-    onConsoleLog(...args)
-    if (options.outputConsole) {
-      prevConsoleLog(...args)
+  if (depth === 0) {
+    console.log = (...args) => {
+      onConsoleLog(...args)
+      if (options.outputConsole) {
+        prevConsoleLog(...args)
+      }
+    }
+    console.warn = (...args) => {
+      onConsoleWarn(...args)
+      if (options.outputConsole) {
+        prevConsoleWarn(...args)
+      }
+    }
+    console.error = (...args) => {
+      onConsoleError(...args)
+      if (options.outputConsole) {
+        prevConsoleError(...args)
+      }
     }
   }
-  console.warn = (...args) => {
-    onConsoleWarn(...args)
-    if (options.outputConsole) {
-      prevConsoleWarn(...args)
-    }
-  }
-  console.error = (...args) => {
-    onConsoleError(...args)
-    if (options.outputConsole) {
-      prevConsoleError(...args)
-    }
-  }
-  const {children, beforeEaches, afterEaches, befores, afters, containsOnly} = block
+  const {
+    children,
+    beforeEaches,
+    afterEaches,
+    befores,
+    afters,
+    containsOnly,
+  } = block
   const {callbacks} = options
-  const stats = new BlockStats(block, depth, inskip)
+  const stats = new BlockStats(block, depth, name)
   try {
     if (containsOnly) {
       for (const before of befores) {
@@ -328,9 +331,14 @@ export async function run(block: IBlock, inskip = false, depth = 0, options = ne
       if (item instanceof Describe) {
         const skip = (inskip || (containsOnly && !item.block.containsOnly))
         const timeStart = +new Date
-        const itemStats = await run(item.block, skip, depth+1, options)
+        const itemStats = await run(item.block, skip, depth+1, options, item.name)
         const timeEnd = +new Date
         itemStats.time = timeStart - timeEnd
+        itemStats.wasRun = skip
+        stats.totalRun += itemStats.totalRun
+        stats.passed.push(...itemStats.passed)
+        stats.failed.push(...itemStats.failed)
+        stats.skipped.push(...itemStats.skipped)
         stats.children.push(itemStats)
       } else if (item instanceof Test) {
         const testStats = new TestStats
@@ -380,6 +388,12 @@ export async function run(block: IBlock, inskip = false, depth = 0, options = ne
   } catch (e) {
     console.error(e)
   }
+  if (depth === 0) {
+    console.log = prevConsoleLog
+    console.warn = prevConsoleWarn
+    console.error = prevConsoleError
+  }
+
   return stats
 
   function setConsoleOutput(outputArr) {
@@ -412,5 +426,14 @@ export async function run(block: IBlock, inskip = false, depth = 0, options = ne
       onConsoleError = prevOnConsoleError
       onConsoleLog = prevOnConsoleLog
     }
+  }
+}
+
+const noop = () => {}
+export class ConsoleEmulator {
+  log = noop
+  warn = noop
+  error = noop
+  constructor() {
   }
 }

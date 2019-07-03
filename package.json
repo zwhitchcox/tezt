@@ -5,6 +5,9 @@
   "description": "Minimalist testing library",
   "repository": "https://github.com/zwhitchcox/tezt.git",
   "main": "dist/tezt.js",
+  "bin": {
+    "tezt": "dist/cli.js"
+  },
   "license": "MIT",
   "dependencies": {
     "chalk": "^2.4.2",

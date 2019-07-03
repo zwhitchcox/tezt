@@ -5,8 +5,8 @@ let projectRoot;
 export async function getConfig() {
   projectRoot = await getProjectRoot()
   const defaultConfig = {
-    extensions: [".test.js", ".test.ts"],
-    ignoreRegExp:  /((^|[\/\\])\..)|node_modules|dist|build/,
+    extensions: [".test.js"],
+    ignoreRegExp:  /((^|[\/\\])\..)|node_modules|build/,
   }
   const userConfig = await getUserConfig()
   if (userConfig) {

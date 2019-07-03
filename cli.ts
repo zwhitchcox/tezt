@@ -1,13 +1,20 @@
+#!/usr/bin/env node
+
 import fs from 'fs-extra'
 import chokidar from 'chokidar'
 import chalk from 'chalk';
 import {getConfig} from './config'
+import { outputResults } from './output';
 
+process.env.TEZT = "cli"
+process.env.FORCE_COLOR = process.env.FORCE_COLOR || "1"
 async function main() {
   if (!config.watch) {
     const allTestFiles = await getAllTestFiles(config.projectRoot)
     for (const file of allTestFiles) {
-      require(file)
+      await import(file)
+      const stats = await (global as any).$$tezt.run()
+      outputResults(stats)
     }
     return
   }
@@ -19,10 +26,9 @@ async function main() {
       ignoreInitial: true,
     })
     .on('change', async changedPath => {
-      process.env.TEZT = "cli"
       if (config.fileRegExp.test(changedPath)) {
         await import(changedPath)
-        await (global as any).$$tezt.unTests()
+        const stats = await (global as any).$$tezt.run()
         reset()
       }
     })

@@ -16,7 +16,7 @@
   "files": [
     "tezt.singleton.ts",
     "cli.ts",
-    "output.ts",
+    "RunCallbacks.ts",
   ],
   "include": [
     "**/*.test.ts"

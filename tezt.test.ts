@@ -13,7 +13,9 @@ describe.only('hellohello', () => {
       console.log('this is run before')
     })
     describe.only('myonly', () => {
-      test('hello', ()=>{})
+      test('hello', ()=>{
+        throw new Error
+      })
       // test('new test', () =>{})
       // test('will be run (unless there\'s another only in the describe', () => {})
     })
