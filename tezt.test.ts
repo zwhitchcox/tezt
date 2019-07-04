@@ -1,6 +1,6 @@
 import expect from 'expect'
 import { test, describe, before, after, afterEach, beforeEach, only } from './tezt.singleton'
-
+import ('source-map-support/register')
 
 
 before(() => {

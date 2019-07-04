@@ -12,6 +12,7 @@ async function main() {
   if (!config.watch) {
     const allTestFiles = await getAllTestFiles(config.projectRoot)
     for (const file of allTestFiles) {
+      await import('source-map-support/register')
       await import(file)
       const stats = await (global as any).$$tezt.run()
       outputResults(stats)

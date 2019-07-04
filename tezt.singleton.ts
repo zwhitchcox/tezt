@@ -1,6 +1,10 @@
 import { Tezt } from './Tezt'
 import { outputResults } from './output';
 import 'source-map-support/register'
+const originalPrepareStackTrace = Error.prepareStackTrace
+Error.prepareStackTrace = (...args) => {
+  return originalPrepareStackTrace(...args)
+}
 
 const IN_NODE = typeof window === "undefined"
 let _global:any = IN_NODE ? global : window

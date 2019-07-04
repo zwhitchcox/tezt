@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { Block, Test, BlockStats, TestStats } from './Tezt';
+import { BlockStats, TestStats } from './Tezt';
 
 export function outputResults (stats) {
   const { passed, totalRun, failed, skipped } = stats

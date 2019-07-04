@@ -35,7 +35,9 @@ export interface IItem {
 export class Item implements IItem {
   constructor(public name) {}
   id = new uuid()
-  location = getLocation()
+  location = (() => {
+    return getLocation(/tezt\.singleton\.ts/)
+  })()
   skip = false
   only = false
 }
@@ -162,11 +164,11 @@ export class Tezt extends Block implements ITezt {
   }
 
   public only = () => {
-    this.onlyLocations.push(getLocation())
+    this.onlyLocations.push(getLocation(new RegExp("")))
   }
 
   public skip = () => {
-    this.skipLocations.push(getLocation())
+    this.skipLocations.push(getLocation(new RegExp("")))
   }
 
   public before     = fn => this.curBlock.befores.push(fn)
@@ -185,17 +187,6 @@ export class Location implements ILocation {
   constructor(public filepath, public lineno) {}
 }
 
-export function getLocation(depth = 3): ILocation {
-  const {stack} = new Error()
-  const lines = stack.split('\n')
-  const fileLine = lines[depth]
-  const filepath = /\(([^:]+):/.exec(fileLine)[1]
-  const lineno = /:(\d+):/.exec(fileLine)[1]
-  return {
-    filepath,
-    lineno,
-  }
-}
 
 type TBlockOrTestStats = ITestStats | IBlockStats
 
@@ -280,32 +271,9 @@ export class RunOptions implements IRunOptions {
 
 
 export async function run(block: IBlock, inskip = false, depth = 0, options = new RunOptions, name?: string) {
-  let prevConsoleLog = console.log
-  let prevConsoleWarn = console.warn
-  let prevConsoleError = console.error
-  let onConsoleWarn = (...args) => {}
-  let onConsoleLog = (...args) => {}
-  let onConsoleError = (...args) => {}
-  if (depth === 0) {
-    console.log = (...args) => {
-      onConsoleLog(...args)
-      if (options.outputConsole) {
-        prevConsoleLog(...args)
-      }
-    }
-    console.warn = (...args) => {
-      onConsoleWarn(...args)
-      if (options.outputConsole) {
-        prevConsoleWarn(...args)
-      }
-    }
-    console.error = (...args) => {
-      onConsoleError(...args)
-      if (options.outputConsole) {
-        prevConsoleError(...args)
-      }
-    }
-  }
+  const {stack} = new Error('my error')
+  console.log(stack)
+  const mp = monkeyPatchConsole(options)
   const {
     children,
     beforeEaches,
@@ -322,9 +290,9 @@ export async function run(block: IBlock, inskip = false, depth = 0, options = ne
         if (callbacks.before) {
           callbacks.before(block, inskip, depth)
         }
-        const destroy = setConsoleOutput(stats.beforeOutput)
+        const dispose = mp.setConsoleOutput(stats.beforeOutput)
         await before()
-        destroy()
+        dispose()
       }
     }
     for (const item of children) {
@@ -352,15 +320,15 @@ export async function run(block: IBlock, inskip = false, depth = 0, options = ne
             continue
           }
           for (const beforeEach of beforeEaches) {
-            const destroy = setConsoleOutput(testStats.beforeEachOutput)
+            const destroy = mp.setConsoleOutput(testStats.beforeEachOutput)
             await beforeEach()
             destroy()
           }
-          const destroy = setConsoleOutput(testStats.output)
+          const destroy = mp.setConsoleOutput(testStats.output)
           await item.fn()
           destroy()
           for (const afterEach of afterEaches) {
-            const destroy = setConsoleOutput(testStats.afterEachOutput)
+            const destroy = mp.setConsoleOutput(testStats.afterEachOutput)
             await afterEach()
             destroy()
           }
@@ -377,7 +345,7 @@ export async function run(block: IBlock, inskip = false, depth = 0, options = ne
     }
     if (containsOnly) {
       for (const after of afters) {
-        const destroy = setConsoleOutput(stats.afterOutput)
+        const destroy = mp.setConsoleOutput(stats.afterOutput)
         await after()
         destroy()
         if (callbacks.after) {
@@ -388,20 +356,52 @@ export async function run(block: IBlock, inskip = false, depth = 0, options = ne
   } catch (e) {
     console.error(e)
   }
-  if (depth === 0) {
+  mp()
+
+  return stats
+}
+
+const noop = () => {}
+function monkeyPatchConsole(options) {
+  let prevConsoleLog = console.log
+  let prevConsoleWarn = console.warn
+  let prevConsoleError = console.error
+  let onConsoleWarn = (...args) => {}
+  let onConsoleLog = (...args) => {}
+  let onConsoleError = (...args) => {}
+  console.log = (...args) => {
+    onConsoleLog(...args)
+    if (options.outputConsole) {
+      prevConsoleLog(...args)
+    }
+  }
+  console.warn = (...args) => {
+    onConsoleWarn(...args)
+    if (options.outputConsole) {
+      prevConsoleWarn(...args)
+    }
+  }
+  console.error = (...args) => {
+    onConsoleError(...args)
+    if (options.outputConsole) {
+      prevConsoleError(...args)
+    }
+  }
+  const dispose = () => {
     console.log = prevConsoleLog
     console.warn = prevConsoleWarn
     console.error = prevConsoleError
-  }
 
-  return stats
+  }
+  dispose.setConsoleOutput = setConsoleOutput
+  return dispose
 
   function setConsoleOutput(outputArr) {
     const prevOnConsoleWarn = onConsoleWarn
     onConsoleWarn = (...args) => {
       outputArr.push({
         message: args.map(String),
-        location: getLocation(),
+        location: getLocation(/Object.console\.warn/),
         type: ConsoleOutputType.Warn
       })
     }
@@ -409,7 +409,7 @@ export async function run(block: IBlock, inskip = false, depth = 0, options = ne
     onConsoleError = (...args) => {
       outputArr.push({
         message: args.map(String),
-        location: getLocation(),
+        location: getLocation(/Object.console\.error/),
         type: ConsoleOutputType.Error
       })
     }
@@ -417,7 +417,7 @@ export async function run(block: IBlock, inskip = false, depth = 0, options = ne
     onConsoleLog = (...args) => {
       outputArr.push({
         message: args.map(String),
-        location: getLocation(),
+        location: getLocation(/Object.console\.log/),
         type: ConsoleOutputType.Log
       })
     }
@@ -429,11 +429,15 @@ export async function run(block: IBlock, inskip = false, depth = 0, options = ne
   }
 }
 
-const noop = () => {}
-export class ConsoleEmulator {
-  log = noop
-  warn = noop
-  error = noop
-  constructor() {
+export function getLocation(matchLine): ILocation {
+  const {stack} = new Error()
+  const lines = stack
+    .split('\n')
+  const lineindex = lines.findIndex(line => matchLine.test(line))
+  const fileline = lines[lineindex + 1]
+  const [_, filepath, lineno] = /.*\s\(?([^:]+):(\d+):\d+\)?$/.exec(fileline)
+  return {
+    filepath,
+    lineno,
   }
 }
