@@ -204,6 +204,7 @@ export interface ITestStats {
   status: TestStatus
   time: number
   error?: Error
+  item: IItem
 }
 
 export class TestStats {
@@ -213,9 +214,10 @@ export class TestStats {
   status = TestStatus.NotRun
   time = 0
   error = null
+  constructor(public item){}
 }
 
-enum ConsoleOutputType {
+export enum ConsoleOutputType {
   Warn,
   Error,
   Log
@@ -228,9 +230,9 @@ export interface IConsoleOutput {
 }
 
 export interface IBlockStats {
-  passed: ITest[]
-  failed: ITest[]
-  skipped: ITest[]
+  passed: ITestStats[]
+  failed: ITestStats[]
+  skipped: ITestStats[]
   totalRun: number
   depth: number
   children: TBlockOrTestStats[]
@@ -271,8 +273,6 @@ export class RunOptions implements IRunOptions {
 
 
 export async function run(block: IBlock, inskip = false, depth = 0, options = new RunOptions, name?: string) {
-  const {stack} = new Error('my error')
-  console.log(stack)
   const mp = monkeyPatchConsole(options)
   const {
     children,
@@ -309,14 +309,15 @@ export async function run(block: IBlock, inskip = false, depth = 0, options = ne
         stats.skipped.push(...itemStats.skipped)
         stats.children.push(itemStats)
       } else if (item instanceof Test) {
-        const testStats = new TestStats
-        if (callbacks.beforeTest) {
+        const testStats = new TestStats(item)
+        if (callbacks.beforeTest) {"./"
           callbacks.beforeTest(item, depth)
         }
         try {
           stats.children.push(testStats)
           if ((!item.only) && (containsOnly || inskip || item.skip)) {
-            stats.skipped.push(item)
+            stats.skipped.push(testStats)
+          testStats.status = TestStatus.Skipped
             continue
           }
           for (const beforeEach of beforeEaches) {
@@ -333,9 +334,11 @@ export async function run(block: IBlock, inskip = false, depth = 0, options = ne
             destroy()
           }
           stats.passed.push(item)
+          testStats.status = TestStatus.Passed
         } catch (e) {
           testStats.error = e
-          stats.failed.push(item)
+          stats.failed.push(testStats)
+          testStats.status = TestStatus.Failed
         }
         if (callbacks.afterTest) {
           callbacks.afterTest(testStats, item)
@@ -361,14 +364,14 @@ export async function run(block: IBlock, inskip = false, depth = 0, options = ne
   return stats
 }
 
-const noop = () => {}
+const noop = (...args) => {}
 function monkeyPatchConsole(options) {
   let prevConsoleLog = console.log
   let prevConsoleWarn = console.warn
   let prevConsoleError = console.error
-  let onConsoleWarn = (...args) => {}
-  let onConsoleLog = (...args) => {}
-  let onConsoleError = (...args) => {}
+  let onConsoleWarn = noop
+  let onConsoleLog = noop
+  let onConsoleError = noop
   console.log = (...args) => {
     onConsoleLog(...args)
     if (options.outputConsole) {
@@ -430,6 +433,7 @@ function monkeyPatchConsole(options) {
 }
 
 export function getLocation(matchLine): ILocation {
+  require('source-map-support/register')
   const {stack} = new Error()
   const lines = stack
     .split('\n')

@@ -1,19 +1,21 @@
 import expect from 'expect'
+import EventEmitter from 'events'
 import { test, describe, before, after, afterEach, beforeEach, only } from './tezt.singleton'
 import ('source-map-support/register')
 
-
 before(() => {
-  console.log('hello')
+  console.log('this is run before all')
 })
 
+let called = 0
 describe.only('hellohello', () => {
   describe.skip('describes can also be onlys, and all tests contained ', () => {
     before(() => {
-      console.log('this is run before')
+      console.warn('this is run before')
     })
     describe.only('myonly', () => {
       test('hello', ()=>{
+        console.log(++called)
         throw new Error
       })
       // test('new test', () =>{})
@@ -21,7 +23,6 @@ describe.only('hellohello', () => {
     })
   })
 })
-
 
 test('this is my test', () => {
   expect('hello').toBe('hello')
@@ -61,6 +62,7 @@ describe('I can describe a group of tests', () => {
     test('and they can include as many', () => {
       console.log('tests as they want')
     })
+
     describe.skip('not real', () => {
       test.only('hello', () => {})
     })

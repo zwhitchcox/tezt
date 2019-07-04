@@ -1,92 +1,95 @@
 #!/usr/bin/env node
 
-import fs from 'fs-extra'
-import chokidar from 'chokidar'
 import chalk from 'chalk';
+import glob from 'glob-promise'
+import chokidar from 'chokidar'
+import uuid from 'uuid/v4'
+import { Tezt } from './Tezt';
 import {getConfig} from './config'
 import { outputResults } from './output';
+import ('source-map-support/register')
 
 process.env.TEZT = "cli"
 process.env.FORCE_COLOR = process.env.FORCE_COLOR || "1"
 async function main() {
+  const config = await getConfig()
   if (!config.watch) {
-    const allTestFiles = await getAllTestFiles(config.projectRoot)
-    for (const file of allTestFiles) {
-      await import('source-map-support/register')
-      await import(file)
-      const stats = await (global as any).$$tezt.run()
-      outputResults(stats)
-    }
-    return
+    return await runTests(config)
   }
 
-  const requireKeep = Object.keys(require.cache)
+  let running = false
   chokidar
-    .watch(config.projectRoot, {
-      ignored: config.ignoreRegExp,
-      ignoreInitial: true,
+    .watch([config.watchPatterns, config.testPatterns], {
+      ignored: config.ignorePatterns,
+      ignoreInitial: false,
     })
-    .on('change', async changedPath => {
-      if (config.fileRegExp.test(changedPath)) {
-        await import(changedPath)
-        const stats = await (global as any).$$tezt.run()
-        reset()
+    .on('all', async (...args) => {
+      if (!running) {
+        running = true
+        setTimeout(async () => {
+          await runTests(config)
+          running = false
+        }, 500)
       }
     })
     .on('ready', () => {
       console.log(chalk.cyan('Watching for changes...'))
     })
+}
 
+async function runTests(config) {
+  const allTestFiles = await getAllTestFiles(config)
+  const requireKeep = Object.keys(require.cache)
+  for (const file of allTestFiles) {
+    await import('source-map-support/register')
+    await import(config.root + "/" + file)
+    const stats = await (global as any).$$tezt.run()
+    outputResults(stats)
+  }
+  reset()
   function reset() {
-    for (const key in require.cache) {
-      if (!requireKeep.includes(key)) {
-        delete require.cache[key]
-      }
+    ;(global as any).$$tezt = new Tezt
+    if(config.watch) {
+      resetRequire(requireKeep)
     }
   }
 }
 
-async function getAllTestFiles(dir) {
-  const files = []
-  await (async function getFilesRecursive(dir) {
-    const sources = await fs.readdir(dir)
-    await Promise.all(
-      sources  // N+1
-        .map(async source => {
-          if (config.ignoreRegExp.test(source)) return
-          const absPath = `${dir}/${source}`
-          if ((await fs.lstat(absPath)).isDirectory()) {
-            await getFilesRecursive(absPath)
-          } else {
-            if (config.fileRegExp.test(absPath)) {
-              files.push(absPath)
-            }
-          }
-        })
-    )
-  })(dir)
+function resetRequire(requireKeep) {
+  for (const key in require.cache) {
+    if (!requireKeep.includes(key)) {
+      delete require.cache[key]
+    }
+  }
+}
+
+async function getAllTestFiles(config) {
+  const files = await glob(config.testPatterns[0], {
+    root: config.root,
+    ignore: config.ignorePatterns,
+  })
+
   return files
 }
 
-            // const possibleSrcPath = sources.find(srcPath => {
-            //   return config.extensions.find(ext => {
-            //     return srcPath.replace(path.extname(srcPath), ext) === source
-            //   })
-            // })
-            // const srcFile = possibleSrcPath ? `${dir}/${possibleSrcPath}` : null
-            // if (config.fileRegExp.test(absPath)) {
-            //   item.files.push({
-            //     srcFile,
-            //     testFile: absPath,
-            //   })
-            // }
-
-let config;
-(async () => {
+;(async () => {
   try {
-    config = await getConfig()
     await main()
   } catch(e) {
     console.error(e)
   }
 })()
+
+function debounce(func, wait, immediate) {
+	var timeout
+	return async function(...args) {
+		var later = async function() {
+			timeout = null
+			if (!immediate) await func(...args)
+    }
+		var callNow = immediate && !timeout
+		clearTimeout(timeout)
+		timeout = setTimeout(later, wait)
+		if (callNow) await func(...args)
+	}
+}

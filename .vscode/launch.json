@@ -49,6 +49,49 @@
       "skipFiles": [
           "<node_internals>/**/*.js",
       ],
+    },
+    {
+      "name": "Run Tezt Watch",
+      "type": "node",
+      "request": "launch",
+      "runtimeArgs": [
+        "--inspect-brk",
+        "./dist/cli.js",
+        "--watch",
+        "--testPatterns",
+        "\"dist/**/*.test.js\"",
+        "--wp",
+        "\"dist/**/*.js\"",
+        "--runInBand",
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "port": 9229,
+      "env": {
+          "FORCE_COLOR": "1"
+      },
+      "skipFiles": [
+          "<node_internals>/**/*.js",
+      ],
+    },
+    {
+      "name": "Run Jest",
+      "type": "node",
+      "request": "launch",
+      "runtimeArgs": [
+        "--inspect-brk",
+        "--runInBand",
+        "${workspaceRoot}/node_modules/.bin/jest",
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "port": 9229,
+      "env": {
+          "FORCE_COLOR": "1"
+      },
+      "skipFiles": [
+          "<node_internals>/**/*.js",
+      ],
     }
   ]
 }

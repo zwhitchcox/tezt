@@ -4,7 +4,7 @@
   "author": "Zane Hitchcox",
   "description": "Minimalist testing library",
   "repository": "https://github.com/zwhitchcox/tezt.git",
-  "main": "dist/tezt.js",
+  "main": "dist/tezt.singleton.js",
   "bin": {
     "tezt": "dist/cli.js"
   },
@@ -13,6 +13,7 @@
     "chalk": "^2.4.2",
     "chokidar": "^3.0.1",
     "fs-extra": "^8.1.0",
+    "glob-promise": "^3.4.0",
     "source-map-support": "^0.5.12",
     "uuid": "^3.3.2"
   },
@@ -27,6 +28,7 @@
     "@types/mocha": "^5.2.7",
     "@types/node": "^12.0.10",
     "expect": "^24.8.0",
+    "jest": "^24.8.0",
     "mocha": "^6.1.4",
     "ts-jest": "^24.0.2",
     "ts-node": "^8.3.0",
